@@ -1,1 +1,987 @@
+CDP y REGISTROPRESUPUESTAL
 
+/*---------------------------------------------------------
+						WINDOWS
+---------------------------------------------------------*/
+-- Generar archivo con el contenido de una carpeta
+dir /s/b/a-d >71.txt
+
+-- comparar directorios
+
+robocopy Z:\BITACORAS\ActividadesBaseDatos2015 W:\CopiaSamba210\BITACORAS\ActividadesBaseDatos2015 /l /njh /njs /ns
+
+
+
+/*---------------------------------------------------------
+						LINUX
+---------------------------------------------------------*/
+--- listar los ultimos 5 archivos creados por el usuario.
+
+---listar memoria swap
+free -m
+
+
+ls -lt | head -5
+
+---Empaquetar archivos:
+tar cvf nombre.tar  directorio_o_nombres_archivos
+
+tar -czvf nombre.tar.gz directorio_o_nombres_archivos
+
+tar -zcf nombre.tar.gz directorio_o_nombres_archivos
+
+tar -zxf nombre_paqu_descomprimir
+
+---comprimir archivos
+gzip -9 nombre_archivo  --- comprimir archivos  
+						   	gunzip nombre_archivo 
+
+-- Consultar memoria RAM
+grep MemTotal /proc/meminfo
+
+-- Consultar paquetes con parte del nombre usando rpm
+rpm -qa | grep nombrePaquete
+
+-- Consultar paquetes con parte del nombre usando yum
+yum info nombrePaquete
+
+-- Ver versión del sistema operativo
+cat /etc/*release
+*/
+cat /etc/os-release
+
+---borrar directorios sin Ignora cualquier aviso al eliminar un archivo protegido contra escritura.
+rm -rf 
+
+---buscar archivos en un directorio en especifico
+--- en este caso directorio etc
+find /etc -name init.d
+
+-- Ver si un proceso se está ejecutando
+ps -aux | grep nombre_proceso
+
+--- conocer si los discos son de estado sólido o mécanicos 
+yum install util-linux ---instalar el siguiente paquete
+lsblk -d -o NAME,ROTA --- Ejecutar el siguiente comando
+
+NAME ROTA
+sda     0       ------------>>>>>  sda corresponde a la partición
+sdb     0		------------>>>>>  0 indica disco de estado sólido, 1 indica disco de estado mecánico
+
+--- ?
+cat /var/log/secure
+
+--- Programar tareas en crontab
+https://crontab-generator.org/
+
+---- Programar crontab sin necesidad de mostrar la salida en la consola
+0 12 * * * /b04/postgres/backup/script/backup_start.sh >/dev/null 2>&1
+
+
+--- Ejecutar archivos sin muestras en la consola
+sh nombre_archivo.sh >/dev/null 2>&1
+
+
+
+
+-- ver puertos abiertos
+iptables -nL | grep ACCEPT | grep NEW
+netstat -ntlp | grep LISTEN
+
+-- ver usuarios
+cat /etc/group
+
+-- Reiniciar servidor
+shutdown -r now
+reboot
+init 6
+
+--Matar procesos
+kill -p PID
+
+--Activar ssh
+chkconfig sshd on
+service sshd start
+
+--- Comando para poder instalar 
+--- y conectarse desde windows al entorno gráfico
+--- La IP debe ser la de la máquina desde donde se intenta acceder
+DISPLAY=172.26.4.195:0.0; export DISPLAY echo DISPLAY
+
+-- Instalar gparted
+yum install epel-release
+yum install gparted
+crear las particiones deseadas con gparted
+
+-- Montar particiones
+Crear las carpetas de los puntos de montaje
+1) conocer uuid de las particiones a montar
+blkid
+2) Los puntos de montaje los administra el siguiente archivo
+gedit /etc/fstab
+Crear lineas para cada particion de la siguiente forma:
+UUID=identificador de disco blkid [/punto de montaje] ["sistema de archivos. ej: ext2"] defaults 0 0
+
+Guardar y en una consola como root, probar
+mount -a
+Sino obtiene error el montaje es correcto y lo puede comprobar con:
+df -h
+
+
+
+
+---------------------------------------------------------- Crear tarea programada ---------------------------------------------------------- 
+
+1. Crear archivo .sh
+vi archivo.sh
+
+#! /bin/sh
+ps aux --width 30 --sort -rss | head
+
+2. dar permisos al archivo 
+chmod 775 archivo.sh
+
+3. Programar tarea
+crontab -e
+
+0 * * * * /ruta/archivo.sh ./* >> /ruta/miSalida.log
+*/5 * * * * [ $(( $(date +\%s) / 60 \% 25 )) -eq 0 ] && el_script
+
+
+*/----------------------  GENERAR CLAVE PUBLICA PRIVADA ENTRE SERVIDORES PARA COPIAR ARCHIVOS DE UN SERVIDOR A OTRO
+
+--Agregar las direcciones ip que pueden agregar archivos en el servidor A (Que pueden acceder por ssh)
+vi /etc/hosts.allow
+-- reiniciar el servicio
+service sshd restart
+
+-- Crear clave publica-privada en el servidor B
+ssh-keygen -t rsa
+-- Crear carpeta desde B en A para agregar clave publica generada
+ssh -p 61111 root@192.168.3.91 mkdir -p .ssh
+
+-- Agregar clave publica en A desde B
+cat .ssh/id_rsa.pub | ssh -p 61111 root@192.168.3.91 'cat >> .ssh/authorized_keys'
+
+-- Crear archivo.sh en servidor B para copiar archivos en A
+scp -P 61111 -i ~/.ssh/id_rsa /b03/postgres/backup/logs/logchequeo.log root@192.168.3.91:/b04/repositorio/area_base/logschequeo/192.168.3.123.log
+
+-- Crear tarea programada en crontab para ejecutar archivo.sh
+50 0 * * * sh /b03/postgres/backup/script/logchequeoremoto.sh
+
+--scp -P 61111 -3 /b03/postgres/backup/logs/logchequeo.log root@192.168.3.91:/b04/repositorio/area_base/logschequeo/172.26.4.210.log
+--
+--rsync -avurp -e "ssh -p 61111" /b03/postgres/backup/logs/logchequeo.log root@192.168.3.91:/b04/repositorio/area_base/logschequeo/172.26.4.210.log
+--
+--ssh -fNL 12345:192.168.3.91:61111 gatewaylogin@gateway
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+						configurar zona horaria centos 8
+--------------------------------------------------------*/
+-- Verificar hora
+date
+-- Verificar hora y zona horaria del sistema
+timedatectl status
+-- Verificar zona horaria exacta de bogota
+timedatectl list-timezones | grep Bogota
+-- Ajustar zona horaria
+timedatectl set-timezone America/Bogota
+-- Verificar nuevamente
+timedatectl status
+date
+
+--- Actualizar hora servidores
+date --set "2023-04-28 10:04:00"
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+						PERMISOS EN LINUX
+CHMOD ("Change mode") es un comando UNIX/LINUX que permite cambiar los permisos de acceso de un archivo. 
+------------------------------------------------------------------------------------------------------------------------------- */
+Primer digito	->	Propietario del archivo 
+Segundo digito	->	Grupo de usuarios FTP
+Tercer digito	->	Usuario corriente
+
+------------Valor de los digitos
+4 -> lectura
+2 -> escritura
+1 -> ejecución
+
+--- Para dar más de un permiso a la vez habría que sumar los valores (por ejemplo para dar permiso de lectura y escritura pero no de ejecución sería 4 + 2 = 6
+
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+														ACCIONES SOBRE ARCHIVOS Y DIRECTORIOS
+------------------------------------------------------------------------------------------------------------------------------- */
+
+------------------------------------------- Hacer busquedas de archivos
+find / -name pg_hba.conf
+find $ORACLE_BASE -name alert_PLGESPUB.log
+
+--------------------------------------------------- Identificar particiones y sus tamaños en Linux---------------------------------------
+df -h
+
+--------------------------------------------------- Crear carpetas con subdirectorios  en Linux ------------------------------------------------
+mkdir -p /dir1/dir2
+
+--------------------------------------------------- Cambiar propietario recursivamente a una carpeta o archivo ---------------------------------------------------
+chown -R oracle:oinstall /dir1/dir2
+chown -R postgres:postgres /dir1/dir2
+
+chown oracle:oinstall miarchivo
+chown postgres:postgres miarchivo
+
+--- descomprimir un dump.Z
+gzip -d
+
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+CONFIGURAR PUERTOS EN iptables PARA SER ACCEDIDOS
+------------------------------------------------------------------------------------------------------------------------------- */
+
+--Nombre del servidor
+vi /etc/sysconfig/network
+
+----- Instalar iptables
+
+Instalamos el servicio de iptables
+«yum install iptables-services»
+Eliminamos el servicio de firewalld:
+«systemctl unmask firewalld»
+Añadimos el servicio de iptables
+«systemctl enable iptables»
+Paramos el servicio de firewalld
+«systemctl start firewalld»
+Iniciamos el servicio de iptables
+«systemctl start iptables»
+
+cd /etc/sysconfig	
+vi iptables
+-----A INPUT -p tcp -m state --state NEW -m tcp --dport 5432 -j ACCEP
+
+--Oracle
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 1521 -j ACCEPT
+
+--Postgres
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 5432 -j ACCEPT
+
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+CONFIGURAR PUERTOS EN FIREWALLD PARA SER ACCEDIDOS
+------------------------------------------------------------------------------------------------------------------------------- */
+--- Instalar Firewalld
+yum install -y firewalld
+---Activar firewall d
+systemctl unmask --now firewalld
+systemctl enable firewalld
+systemctl start firewalld
+
+
+
+--Para el sistema operativo Oracle linux 8.6
+firewall-cmd --get-active-zones
+firewall-cmd --zone=public --add-port=5432/tcp --permanent 
+firewall-cmd --zone=dmz --add-port=5432/tcp --permanent
+firewall-cmd --reload
+
+firewall-cmd --list-all
+
+
+
+
+service firewalld status
+systemctl stop firewalld
+systemctl disable firewalld
+systemctl mask --now firewalld
+history  |grep open
+history  |grep systemctl
+systemctl restart openvpn-server@serversystemctl restart openvpn-server@server
+systemctl restart openvpn-server@server
+
+
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+																ACCIONES SOBRE POSTGRES
+------------------------------------------------------------------------------------------------------------------------------- */
+
+
+
+/*-----------------------------CREAR BASE DE DATOS-------------------------*/
+
+En este archivo la palabra SID se reemplaza por el nombre de la base de datos
+
+--- Crear el tablespace asociado a la base de datos a crear.
+	
+	su - postgres
+	mkdir -p /ruta/TableSpaceBD
+	
+	psql template1
+
+	create TABLESPACE TableSpaceBD OWNER postgres LOCATION '/ruta/TableSpaceBD';
+		CREATE TABLESPACE
+
+-- Creacion de la base de datos
+			
+	Hay dos formas de crear la base de datos
+		1.Modo:psql ->consola
+		  CREATE DATABASE SID
+			OWNER = role_name
+			TEMPLATE = template
+			ENCONDING = enconding
+			LC_COLLATE = collate
+			LC_CTYPE = collate
+			TABLESPACE = tablespace_name
+			CONNETION LIMIT = max_concurrent_connection;
+			
+		2.Modo de sistema operativo
+		  createdb -E LATIN1 -D TableSpaceBD SID
+
+--Conectarse a una base de datos con un usuario especifico
+psql SID -U usuario
+
+--Conectarse a una bd y generar archivo csv de una consulta, se genera en la ruta desde donde se ejecute el comando psql
+[postgres@localhost ~]$ psql plantillapriv
+psql (12.5)
+Digite «help» para obtener ayuda.
+
+plantillapriv=# \o funcionalidad.csv;
+plantillapriv=# select * from vortal.funcionalidad where func_fechacambio::date > '2022-03-30'::date order by func_fechacambio;
+plantillapriv=#
+
+-- Cambiar encodin de bd de LATIN1 a UTF-8 ó visceversa
+	psql
+	update pg_database set encoding=6 where datname='SID';
+
+--Cambiar contrasenia en postgres
+ALTER USER MIUSUARIO with password 'MiCoNtRaSeNiA';
+
+----------Ver conexiones a la base de datos
+SELECT  * FROM pg_stat_activity WHERE datname='SID';
+
+------------Cerrar conexion a la base de datos
+SELECT pg_terminate_backend(pid);
+
+-------- Configurar postgres para ser accedico remotamente desde entorno gráfico
+su - postgres
+vi $PGDATA/pg_hba.conf
+----Poner la ip que accederá al servidor
+host all all 172.16.4.161/32 password
+host SID usuario IP/32 password
+	---Reiniciar el servicio
+pg_ctl -D $PGDATA reload
+
+
+-- Hacer desc de una tabla en postgreSql
+select column_name, data_type, is_nullable from information_schema.columns where table_name = 'aud_citacionheurisoft';
+select column_name, is_nullable, data_type, character_maximum_length, numeric_precision from information_schema.columns c where table_name = 'inscritofechaexperiencia';
+
+
+--------------------------------------EJECUCIÓN DE ARCHIVOS EN POSTGRES DESDE TERMINAL Ó POR SSH----------------------------------------------------------------
+
+1. loguearse como usuario postgres:
+su - postgres
+
+2. Ejecutar el siguiente comando en una unica linea:
+
+psql SID </ruta1/archivo.sql>& /ruta2/archivo.log 2>&1
+
+donde:
+SID: nombre de la base de datos
+ruta1: ruta de ubicación del script a ejecutar
+archivo.sql: nombre del script a ejecutar
+ruta2: ruta donde desea que quede el log del script ejecutado
+archivo.log: nombre que desea para log del archivo ejecutado
+
+--------------------- Ejecutar scripts postgres en windows
+
+---Archivo sql normal
+"C:\Program Files (x86)\PostgreSQL\8.4\bin\psql.exe" -d SID -f "archivo.sql" 1> "archivo.log" 2>&1 postgres
+
+
+----------- Si motor postgres tiene encoding = 6 configurar tildes en scripts
+
+------------------------------ Generarar backup en postgres
+pg_dumpall -U USUARIO --host=$IP --verbose 1> exp.pipe 2> $ARCHIVOEXP.log
+
+pg_dump --format=c -f c:\temp\pgposatlan.dump 1> c:\temp\pgposatlan_export.log 2>&1 --username=postgres pruatlantico
+
+pg_dump -U $USUARIO --host=$IP --format=c --file=exp.pipe --verbose $INSTANCIA 2> $ARCHIVOEXP.log
+
+------------------------------ restaurar backup full postgres -----------------------------------------------------------
+pg_restore -F c -v -d SID -v /ruta/nombrecopia.dump  >& /ruta/nombrelog.log
+
+---Restaurar backup
+"C:\Program Files (x86)\PostgreSQL\8.4\bin\psql.exe" -d SID -f "archivo.pgdump" > "archivo.log" postgres
+
+
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------
+															ACCIONES SOBRE ORACLE
+------------------------------------------------------------------------------------------------------------------------------- */
+
+-- Cambiarse de instancia en oracle
+su - oracle
+. oraenv
+ORACLE_SID = [SPUBLICA] ? SID
+
+--------------------------------------------------- Levantar/detener BD oracle y conectarse -----------------------------------------------------
+-----Cambiar SID por el nombre de la instancia
+lsnrctl start
+export ORACLE_SID=SID
+sqlplus /nolog
+conn /as sysdba
+startup
+shutdown
+
+-- Baja todas las base, no conectarse a sqlplus
+dbshut $ORACLE_HOME ---bajar base
+dbstart $ORACLE_HOME ---subir base
+
+-- Verificar si la instancia está arriba desde el SO
+lsnrctl status
+-- Verificar si la instancia está arriba por consulta
+sqlplus /nolog
+conn /as sysdba
+SELECT INSTANCE_NAME, STATUS, DATABASE_STATUS FROM V$INSTANCE;
+
+--Ver información de la base de datos
+select * from v$database;
+
+
+export ORACLE_SID=PRESEN01
+[oracle@proyectos-ies ~]$ echo $ORACLE_SID
+PRESEN01
+
+sqlplus /nolog
+$ SQL> conn / as sysdba
+
+select name from v$database
+
+--------------------------------------------------- Cambiar contraseña a un usuario ---------------------------------------------------
+export ORACLE_SID=SID
+sqlplus /nolog
+conn / as sysdba
+--verificar estado de los usuarios
+select username, account_status, expiry_date, profile from dba_users;
+--Ver perfil asociado al usuario
+SELECT * FROM DBA_PROFILES WHERE RESOURCE_NAME = 'PASSWORD_LIFE_TIME' AND PROFILE = 'DEFAULT';
+--Cambiar contraseña
+ALTER USER MIUSUARIO IDENTIFIED BY "MiCoNtRaSeNiA";
+
+connect SYS/MiCoNtRaSeNiA AS SYSDBA;
+
+------------------------------------------- Ejecutar srcipts Oracle ---------------------------------------
+---EJECUCIÓN DE SCRIPTS EN ORACLE DESDE LA HERRMIENTA sqlplus DE ORACLE
+su - oracle
+cd /ruta/
+sqlplus /nolog
+--conn USUARIO/"CLAVE"@IP:PUERTO/SID
+conn USUARIO /CLAVE@SID
+@miScript.sql;
+
+Donde:
+USUARIO: usuario con el que se conecta a la BD
+CLAVE: clave del usuario con el que se conecta
+SID: nombre de la base de datos
+ruta: ruta donde están el script a ejecutar
+miScript.sql: Script a ejecutar en la BD
+NOTA: el log generado quedará en la ruta donde se haya ejecutado el script
+
+
+--------------CRECIÓN DE USUARIOS ORACLE
+----------------------------------- cuando version de motor oracle >= 12, despues de creados hacer el siguiente alter
+ALTER USER VISOR DEFAULT TABLESPACE  VISOR TEMPORARY TABLESPACE TVISOR QUOTA UNLIMITED ON VISOR  QUOTA UNLIMITED ON AUDVISOR QUOTA UNLIMITED ON INDVISOR;
+
+Para el script de creación de usuarios oracle, se debe abrir y editar cambiando la palabra /ruta/ por la ubicacion de los datafiles
+Comparto consulta para validar la ubicacion de los datafiles
+
+/*--------------------------------------------------------------IMPORTAR EXPORTAR BACKUPs EN ORACLE---------------------------------*/
+La utilidad expdp e impdp está disponible a partir de la versión 10g en adelante
+
+--DONDE:
+USUARIO: usuario con el que hace la exportación/importación
+CLAVE: clave del usuario con el que hace la  exportación/importación
+SID: nombre de la base de datos
+DIRECTORIO: ruta para ubicación del archivo backup (aplica solo para la utilidad expdp e impdp, debe estar previamente creado en la base de datos)
+ruta1: ruta donde quedará el archivo backup (aplica solo para la utilidad exp e imp)
+archivo.dmp: nombre del archivo backup
+ruta2: ruta donde quedará el log del proceso backup (aplica solo para la utilidad exp e imp)
+archivo.log: nombre del log del proceso backup
+listado_usuarios: listado de usuarios separados por comas (,) ejemplo VISOR,APLIVISOR (Aplica solo para exportar/importar por esquemas)
+
+--Crear directorio en BD Oracle, aplica solo para la utilidad expdp e impdp, previamente debe existir el directorio en el Sistema Operativo
+sqlplus /nolog
+conn system /password@SID
+create directory DIRECTORIO as '/ruta/directorio';
+conn /as sysdba
+--Se debe conceder permisos de escritura y lectura al usuario (con el que se realizará la exportación), sobre el objeto creado.
+grant read, write on DIRECTORIO COPIAS to USUARIO;
+-- Verificar directorios en la base de datos
+select * from dba_directories
+
+
+
+------------------------------------ EXPORTAR BACKUP POR ESQUEMAS EN ORACLE ------------------------------------------
+exp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta2/archivo.log owner=listado_usuarios
+expdp USUARIO/CLAVE@SID directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log consistent=Y schemas=listado_usuarios
+
+-- Exportar usando otra forma de conexion a la bd, funciona especialmente cuando la base no se suscribe correctamente al listener
+exp USUARIO/"CLAVE"@IP:PUERTO/SID file=/ruta1/archivo.dmp log=/ruta1/archivo.log owner=listado_usuarios
+--IP: del servidor, PUERTO: de la base de datos
+
+--Exportar para una versión en especifico, en este caso oracle 11g 11.2
+expdp USUARIO/CLAVE@SID directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log consistent=Y VERSION=11.2 schemas=listado_usuarios
+
+--Exportar una copia de solo datos
+exp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta1/archivo.log grants=n indexes=n constraints=n triggers=n owner=listado_usuarios
+expdp USUARIO/CLAVE@SID directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log EXCLUDE=CONSTRAINT EXCLUDE=FUNCTION EXCLUDE=PROCEDURE EXCLUDE=PACKAGE EXCLUDE=INDEX EXCLUDE=INDEX EXCLUDE=GRANT EXCLUDE=TRIGGER  schemas=listado_usuarios
+
+
+
+------------------------------------ IMPORTAR BACKUP POR ESQUEMAS EN ORACLE--------------------------
+
+----************************** PERMISOS AL USUARIO EXPORTADOR PARA IMPORTAR LA COPIA ***********************************_-----------------------
+
+---DAR PERMISOS AL USUARIO EXPORTADOR
+grant DATAPUMP_IMP_FULL_DATABASE to exportador; 
+grant DATAPUMP_EXP_FULL_DATABASE to exportador;
+GRANT UNLIMITED TABLESPACE TO EXPORTADOR;
+
+
+imp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta2/archivo.log fromuser= listado_usuarios touser=listado_usuarios
+impdp USUARIO/CLAVE@SID schemas=listado_usuarios directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log
+
+	DIRECTORIO COMO SE LLAMA EL DIRECTORIO DEL QUE TIENE CONOCIMIENTO LA BASE DE DATOS
+
+------------------------------------ EXPORTAR BACKUP FULL EN ORACLE--------------------------
+exp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta2/archivo.log owner=listado_usuarios full=y
+expdp USUARIO/CLAVE@SID full=Y directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log
+
+
+------------------------------------ IMPORTAR BACKUP FULL EN ORACLE--------------------------
+impdp USUARIO/CLAVE@SID full=Y directory=DIRECTORIO dumpfile=archivo.dmp logfile=archivo.log TABLE_EXISTS_ACTION=REPLACE
+imp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta2/archivo.log full=y
+
+------------------------------------ EXPORTAR IMPORTAR BACKUP DE SOLO TABLAS EN ORACLE--------------------------
+exp USUARIO/CLAVE@SID tables=esquema.tabla file=/ruta1/archivo.dmp log=/ruta2/archivo.log
+imp USUARIO/CLAVE@SID file=/ruta1/archivo.dmp log=/ruta2/archivo.log FROMUSER=listado_usuarios TOUSER=listado_usuarios
+
+
+----------------------------------- Importar backup por esquemas en oracle para Amazon RDS - AWS ------------------------------------------
+DECLARE
+hdnl NUMBER;
+BEGIN
+hdnl := DBMS_DATAPUMP.OPEN( operation => 'IMPORT', job_mode => 'SCHEMA', job_name=>null);
+DBMS_DATAPUMP.ADD_FILE( handle => hdnl, filename => 'archivo.dmp', directory => 'DIRECTORIO', filetype => dbms_datapump.ku$_file_type_dump_file);
+DBMS_DATAPUMP.ADD_FILE( handle => hdnl, filename => 'archivo.log', directory => 'DIRECTORIO', filetype => dbms_datapump.ku$_file_type_log_file);
+DBMS_DATAPUMP.METADATA_FILTER(hdnl,'SCHEMA_EXPR','IN (''USUARIO1'', ''USUARIO2'', ''USUARIOn'')');
+DBMS_DATAPUMP.START_JOB(hdnl);
+END;
+/
+
+
+---------------------------------------- Verificar privilegios de los objetos----------------------------------------
+
+SELECT 'GRANT '||PRIVILEGE||' ON '||OWNER||'.'||TABLE_NAME||' TO '||GRANTEE||';' FROM DBA_TAB_PRIVS
+WHERE GRANTEE='APLIINVESTIGACIONIG'
+AND OWNER<>'INVESTIGACIONIG';
+
+SELECT 'GRANT '||PRIVILEGE||' ON '||OWNER||'.'||TABLE_NAME||' TO '||GRANTEE||';' FROM DBA_TAB_PRIVS
+WHERE GRANTEE IN ('ACADEMICO', 'APLIACADEMICO')
+--AND OWNER IN ('TESORERIAV3', 'CONTABLEV3')
+AND TABLE_NAME IN (
+'TABLA', 
+'PROCEDIMIENTO',
+'TRIGGERs')
+ORDER BY owner, TABLE_NAME;
+
+SELECT 'GRANT '||PRIVILEGE||' ON '||OWNER||'.'||TABLE_NAME||' TO '||GRANTEE||';' FROM DBA_TAB_PRIVS
+where TABLE_NAME IN (
+'ORDENPEDIDO'
+)
+ORDER BY GRANTEE;
+
+
+-- Ver parametros de la base de datos
+select * from v$parameter where name like '%ga"_%'  ESCAPE '"' order by name;
+
+--------------------------- Ver DDL de una tabla en oracle ---------------------------
+select TO_CHAR(dbms_metadata.get_ddl('TABLE','TRABAJADORLABOR','TALENTOV3')) FROM DUAL;
+
+--------------------------- Ver indices de las tablas ---------------------------
+
+select * from all_indexes where table_owner = TABLESPACE_name and owner not in ('SYSTEM') ORDER BY TABLE_OWNER, TABLE_NAME;
+
+SELECT * FROM ALL_INDEXES WHERE INDEX_NAME IN ('FOSC:UK','pk_BANCOCONCEPTOINGRESO','EDCR_pk','CEOF_pk','PECH_pk')
+
+---------------------------------------------------- Ver juego de caracteres en Oracle ----------------------------------------------------
+select * from NLS_DATABASE_PARAMETERS where PARAMETER = 'NLS_CHARACTERSET';
+
+select * from  nls_database_parameters where parameter in ( 'NLS_CHARACTERSET', 'NLS_NCHAR_CHARACTERSET');
+
+-----------------------Ver ubicación de DATAFILES de una base de datos ORACLE--------------------------------------------------
+--TABLESPACES PERMANENTES
+SELECT NAME FROM V$DATAFILE;
+
+--TABLESPACES TEMPORALES
+SELECT FILE_NAME FROM DBA_TEMP_FILES;
+
+---------- Verificar TABLESPACEs autoextendibles
+
+select TABLESPACE_NAME, FILE_NAME,AUTOEXTENSIBLE,MAXBYTES from dba_Data_files where TABLESPACE_NAME like 'AUDTESORERIAV3';
+
+select 'alter database datafile '|| file_name|| ' '|| ' autoextend on maxsize unlimited;'
+from dba_data_files where autoextensible='NO';
+
+
+--------------------------- Ampliar espacio de memoria de datafile -------------------------------------------
+ALTER TABLESPACE
+   mi_TABLESPACE
+ADD DATAFILE
+   '/ruta/nuevo_FILE.dbf'
+size 100m;
+
+---------------------------------- cuando
+ORA-00845: MEMORY_TARGET not supported on this system
+--hacer lo siguiente
+gedit /etc/fstab
+tmpfs      /dev/shm      tmpfs   defaults,size=8g   0   0
+mount -o remount /dev/shm
+
+
+--IDENTIFICAR CAMPOS PRIMARIOS DE LAS TABLAS EN ORACLE
+select distinct T1.OWNER, T1.table_name, T2.COLUMN_NAME, T1.constraint_name,T1. STATUS FROM ALL_CONSTRAINTS T1 
+INNER JOIN ALL_CONS_COLUMNS T2 
+ON T2.CONSTRAINT_NAME = T1.CONSTRAINT_NAME AND T2.OWNER = T1.OWNER
+WHERE 
+T2.COLUMN_NAME LIKE '%PEGE_ID%' AND
+T1.constraint_type = 'P' AND
+T1.table_name IN (
+'DATOSADICIONALESEST',
+'ESTUDIANTE',
+'ESTUDIANTEPENSUM',
+'ESTUDIOSSECUNDARIOSEST',
+'INFORMACIONFINANCIERAESTU',
+'POSESIONRESIDENCIAEST',
+'PERSONAGENERAL',
+'PERSONAGENERALAUXILIAR',
+'PERSONANATURALGENERAL'
+) AND 
+T1.OWNER IN (
+'ACADEMICO',
+'GENERAL'
+)
+ORDER BY T1.OWNER, T1.table_name, T2.COLUMN_NAME;
+
+--IDENTIFICAR FORANEAS ENTRE TABLAS EN ORACLE
+SELECT 
+DISTINCT 
+C.CONSTRAINT_NAME AS CONSTRAINT, 
+C.OWNER ESQUEMAORIGEN,
+C.TABLE_NAME AS TABLAORIGEN,
+X.OWNER ESQUEMAREFERENCIA,
+X.TABLE_NAME AS TABLAREFERENCIA,
+T2.COLUMN_NAME AS CAMPOREFERENCIA 
+FROM DBA_CONSTRAINTS C, DBA_CONSTRAINTS X, ALL_CONS_COLUMNS T2
+WHERE
+C.R_CONSTRAINT_NAME=X.CONSTRAINT_NAME AND 
+T2.CONSTRAINT_NAME = C.CONSTRAINT_NAME AND 
+C.CONSTRAINT_TYPE = 'R' AND 
+--T2.COLUMN_NAME LIKE 'PEGE_ID%' AND 
+C.TABLE_NAME IN (
+'DATOSADICIONALESEST',
+'ESTUDIANTE',
+'ESTUDIANTEPENSUM',
+'ESTUDIOSSECUNDARIOSEST',
+'INFORMACIONFINANCIERAESTU',
+'POSESIONRESIDENCIAEST',
+'PERSONAGENERAL',
+'PERSONAGENERALAUXILIAR',
+'PERSONANATURALGENERAL'
+) and 
+X.TABLE_NAME IN (
+'DATOSADICIONALESEST',
+'ESTUDIANTE',
+'ESTUDIANTEPENSUM',
+'ESTUDIOSSECUNDARIOSEST',
+'INFORMACIONFINANCIERAESTU',
+'POSESIONRESIDENCIAEST',
+'PERSONAGENERAL',
+'PERSONAGENERALAUXILIAR',
+'PERSONANATURALGENERAL'
+)
+ORDER BY C.OWNER, C.TABLE_NAME;
+
+--Generar consultas para archivosarchivos csv directamente
+SELECT 
+'set heading off
+spool C:\Users\Usuario\Desktop\13\Listado_'||TABLA||'.csv
+SELECT /*csv*/ * FROM '||OWNER||'.'||TABLA||' WHERE '||COLUMNA||' IN (''270130'');
+spool off;
+'
+FROM JESUSDELGADO.PARADOCUMENTOSGENERALES;
+
+--GENERAR SELECTs
+SELECT
+'set heading off
+spool C:\Users\Usuario\Desktop\13\Listado_'||TABLE_NAME||'.csv
+SELECT /*csv*/ * FROM '||OWNER||'.'||TABLE_NAME||' WHERE '||COLUMN_NAME||' IN (''270130'');
+spool off;
+' generarCSV,
+'SELECT * FROM '||OWNER||'.'||TABLE_NAME||' WHERE '||COLUMN_NAME||' IN (''270130'');' selectNormal
+FROM DBA_TAB_COLUMNS WHERE
+COLUMN_NAME LIKE '%PEGE_ID%' AND
+TABLE_NAME IN (
+'DATOSADICIONALESEST',
+'ESTUDIANTE',
+'ESTUDIANTEPENSUM',
+'ESTUDIOSSECUNDARIOSEST',
+'INFORMACIONFINANCIERAESTU',
+'POSESIONRESIDENCIAEST',
+'PERSONAGENERAL',
+'PERSONAGENERALAUXILIAR',
+'PERSONANATURALGENERAL'
+) AND 
+OWNER IN (
+'ACADEMICO',
+'GENERAL'
+)
+ORDER BY OWNER, TABLE_NAME;
+
+--DESHABILITAR FORANEAS
+ALTER TABLE "ACADEMICO"."DATOSADICIONALESEST"  DISABLE  CONSTRAINT "DAAE_PEGE_FK";
+
+--HABILITAR FORANEAS
+ALTER TABLE "ACADEMICO"."DATOSADICIONALESEST"  ENABLE  CONSTRAINT "DAAE_PEGE_FK";
+
+--VERIFICAR ESTADO DE CONSTRAINT
+SELECT OWNER,TABLE_NAME,CONSTRAINT_NAME,CONSTRAINT_TYPE,STATUS,VALIDATED
+FROM DBA_CONSTRAINTS
+WHERE CONSTRAINT_NAME IN (
+'DAAE_PEGE_FK'
+)
+AND OWNER IN (
+'ACADEMICO'
+)
+ORDER BY OWNER,TABLE_NAME,CONSTRAINT_NAME;
+
+--HACER UN INSERT SELECT A UNA TABLA
+INSERT INTO GENERAL.AUD_PERSONAGENERALAUXILIAR(
+	PEGE_ID,
+	PEGA_DECLARANTE,
+	PEGA_REGISTRADOPOR,
+	PEGA_FECHACAMBIO,
+	PEGA_ACTIVO,
+	PEGA_TIENERUT,
+	PEGA_DIGITOVERIFICACIONRUT,
+	PEGA_DOCUMENTOREPRES,
+	PEGA_LUGAREXPED,
+	TIDG_ID,
+	PEGA_TIENEFACTURAELECTRONICA,
+	PEGA_OPERACION,
+	TIPO_ID,
+	PEGA_RESPONSABILIDADFISCAL 
+)
+SELECT 
+	PEGE_ID,
+	PEGA_DECLARANTE,
+	'CAT 90-34947',
+	SYSDATE,
+	PEGA_ACTIVO,
+	PEGA_TIENERUT,
+	PEGA_DIGITOVERIFICACIONRUT,
+	PEGA_DOCUMENTOREPRES,
+	PEGA_LUGAREXPED,
+	TIDG_ID,
+	PEGA_TIENEFACTURAELECTRONICA,		
+	'D',
+	TIPO_ID,
+	PEGA_RESPONSABILIDADFISCAL 
+FROM GENERAL.PERSONAGENERALAUXILIAR WHERE PEGE_ID = 270130;
+
+--Uso de procedimientos de borrado en oracle
+SET SERVEROUTPUT ON;
+DECLARE
+RESULTADO NUMBER(1);
+BEGIN
+GENERAL.PR_GENERAL_D_PERSONAGENERAL(944885,'CAT 90-33065',RESULTADO);DBMS_OUTPUT.PUT_LINE(RESULTADO);
+END;
+/
+
+
+--Identificando foraneas a una tabla en postgres
+SELECT 
+'SELECT * FROM '||tc.table_schema||'.'||tc.table_name||';'
+FROM information_schema.table_constraints tc
+LEFT JOIN information_schema.key_column_usage kcu
+ON tc.constraint_catalog = kcu.constraint_catalog
+AND tc.constraint_schema = kcu.constraint_schema
+AND tc.constraint_name = kcu.constraint_name
+LEFT JOIN information_schema.referential_constraints rc
+ON tc.constraint_catalog = rc.constraint_catalog
+AND tc.constraint_schema = rc.constraint_schema
+AND tc.constraint_name = rc.constraint_name
+LEFT JOIN information_schema.constraint_column_usage ccu
+ON rc.unique_constraint_catalog = ccu.constraint_catalog
+AND rc.unique_constraint_schema = ccu.constraint_schema
+AND rc.unique_constraint_name = ccu.constraint_name
+WHERE lower(tc.constraint_type) in ('foreign key')
+AND kcu.column_name = 'usua_id'
+AND ccu.table_name = 'usuario'
+AND ccu.constraint_schema = 'registro'
+ORDER BY tc.table_schema,tc.table_name;
+
+------------------------ Verificar instalación de producto
+
+--Consulta1
+SELECT * FROM general.ejecucion WHERE paqu_id like '%A2.4.0.01.04%';
+
+--Consulta2
+select count(1), paqu_id from general.ejecucion group by paqu_id order by paqu_id;
+
+
+/*-----------------------------------
+	REGISTRAR PRODUCTOS EN NEPTUNO
+-----------------------------------*/
+
+select * from seguimiento.producto
+select * from seguimiento.productosgbd
+select * from seguimiento.paquete
+
+
+
+INSERT INTO seguimiento.producto(
+	prod_id, prod_nombre, prod_sigla, prod_estado, prod_coodinador, prod_esquemacontrol, prod_registradopor, prod_fecharegistro, caor_id)
+	VALUES (254, 'INTEGRACION BANCARIA IG','IBA', 'Activo','JAIME YAIR SERRANO', 'BANCAEXTERNA', 'JESUS GABRIEL DELGADO LEAL', now(), '1');
+	
+
+
+SELECT MAX(prod_id) from seguimiento.producto; 
+
+	
+
+
+INSERT INTO seguimiento.productosgbd(
+	prsg_id, prsg_estado, prsg_registradopor, prsg_fecharegistro, tisg_id, prod_id)
+	VALUES (422, 'Activo','1094246872',now(), 1, 254);
+	
+	SELECT * FROM seguimiento.productosgbd
+	
+	SELECT MAX(prsg_id) from seguimiento.productosgbd; 
+	
+
+INSERT INTO seguimiento.paquete(
+	paqu_id, paqu_nombre, paqu_estado, paqu_solicitante, paqu_fechainicio, paqu_fechafin, paqu_tipo, paqu_idorigen, paqu_registradopor, paqu_fecharegistro, prsg_id)
+	VALUES (1809, 'IBA.4.0.02.01' , 'Activo', 'JAIME YAIR SERRANO', now(), now(), 'ACTUALIZACION', NULL, 'EDINSON ARAQUE', NOW(), 422);
+	
+	
+		SELECT MAX(paqu_id) from seguimiento.paquete;
+
+
+
+"""
+	A continuación de describe la forma de inventariar las bases de datos presentes por cada instancia en oracle
+	debe conectarse a la base de datos que desee inventariar
+
+
+"""
+
+
+(SELECT 'Secuencias' AS "Tipo", sequence_schema, sequence_name
+FROM information_schema.sequences
+WHERE sequence_schema NOT IN('pg_catalog', 'information_schema')
+ORDER BY sequence_schema, sequence_name)
+union
+(SELECT 'Trigger' AS "Tipo", trigger_schema, trigger_name
+FROM information_schema.triggers
+WHERE trigger_schema NOT IN('pg_catalog', 'information_schema')
+ORDER BY trigger_schema, trigger_name)
+union
+(SELECT 'Procedimientos' AS "Tipo", specific_schema, routine_name
+FROM information_schema.routines
+WHERE specific_schema NOT IN('pg_catalog', 'information_schema')
+ORDER BY specific_schema, routine_name)
+union
+(SELECT 'Tablas' AS "Tipo", table_schema, table_name
+FROM information_schema.tables
+WHERE table_schema NOT IN('pg_catalog', 'information_schema')
+ORDER BY table_schema, table_name)
+union
+(SELECT 'Constraints' AS "Tipo", constraint_schema, constraint_name
+FROM information_schema.table_constraints
+WHERE constraint_schema NOT IN('pg_catalog', 'information_schema')
+ORDER BY constraint_schema, constraint_name);
+
+
+"""CREAR BASE DE DATOS A NIVEL DE SO EN POSTGRES ASOCIANDOSE AL TABLESPACE"""
+createdb -O postgres -E LATIN1 -D presen01 PRESEN01;
+
+"""
+CONSULTAR DIRECTORIO BASE DE DATOS CREADA EN POSTGRES
+"""
+SELECT
+spcname AS NOMBRE,
+pg_tablespace_location(a.oid) AS DIRECTORIO,
+b.rolname AS PROPIETARIO
+FROM
+pg_tablespace a,
+pg_authid b
+WHERE
+a.spcowner=b.oid
+
+
+""" BORRAR BASE DE DATOS EN POSTGRES CONECTADO DESDE PSQL """
+DROP DATABASE "SID"
+
+
+---------------------------------------------------------------------  TOMCAT
+
+"""
+	/*
+	[root@localhost bin]# cd ..
+	[root@localhost tomcat5_8080]# cd logs/
+	[root@localhost logs]# tail -f catalina.out
+
+linea a tener en cuenta para configurar contextos del archivo server.xml
+aproximadamente linea 340: <Engine name="Catalina" defaultHost="localhost" ebug="0" jvmRoute="lb_8085">
+
+"""
+
+$$$ ACTUALIZAR DIRECCIONES EN POSTGRES 
+select * from VORTAL.rol as R, VORTAL.usuariorol as UR, general.usuario u  
+where  UR.usua_id  =U.usua_id and UR.rol_id  = R.rol_id  and
+		rol_tipo = 'ESTUDIANTE';
+		
+select * from vortal.aplicacion
+select * from vortal.aplicacion where apli_id=0;
+
+
+update vortal.aplicacion set apli_url = 'http://172.26.6.114:8080/academico/hermesoft/vortal/apl_gen.jsp' where  apli_id = 0;
+
+select * from vortal.aplicacion order by apli_nombre ;
+
+update vortal.aplicacion set apli_url = 'http://172.26.6.114:8080/academico/academico/apl_gen.jsp' where  apli_id = 1;
+
+select * from vortal.aplicacion order by apli_nombre ;
+http://172.26.6.114:8080/hermesoft/vortal/
+
+
+select * from vortal.usuariorol where usua_id = 219881;
+select * from vortal.rol  where rol_id = 158;
+select * from general.usuario where usua_documento = '1020223808';
+
+select * from portal.usuarioorganizacion;
+
+	*/
+
+"""
+
+"""
+
+---CONECTARSE A BASE MYSQL DESDE USUARIO ROOT
+mysql -h localhost -u root -p
+
+
+
+---
+
+INSTALACIR ORACLE EN LA NUBE
+$./runInstaller -ignorePrereq
